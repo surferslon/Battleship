@@ -26,7 +26,7 @@ class GameCommands(Mapping):
         return getattr(self, cmd, None)
 
     def quit(self, *args, **kwargs):
-        print("\nYou've quited the battle")
+        print("\nYou've quit the battle")
         self.break_out = True
 
     def shot(self, *args, **kwargs):
@@ -119,7 +119,7 @@ class Game:
                 try:
                     time.sleep(3)
                 except KeyboardInterrupt:
-                    print("\nYou've quited the battle")
+                    print("\nYou've quit the battle")
                     break
             if self.commands.break_out:
                 break

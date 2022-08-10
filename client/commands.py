@@ -70,6 +70,7 @@ class CmdGamesList(Command):
                 f"Winner: {game['winner']}" if game["winner"] else "In progress",
             )
 
+    @staticmethod
     def help():
         return "Get games list"
 
@@ -82,6 +83,7 @@ class CmdNewGame(Command):
         game = Game(id=resp.get("id"), player=config.current_user)
         game.start()
 
+    @staticmethod
     def help():
         return "Start a new game"
 
@@ -101,6 +103,7 @@ class CmdJoinGame(Command):
         game = Game(id=resp.get("id"), player=config.current_user)
         game.start()
 
+    @staticmethod
     def help():
         return "Join existing game"
 

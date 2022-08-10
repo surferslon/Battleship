@@ -58,7 +58,7 @@ class ShotSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         game = validated_data["game"]
         field = self.build_map(game, user)
-        if validated_data["x"] not in range(10) or validated_data["y"] not in range(10):
+        if validated_data["x"] not in range(FIELD_WIDTH) or validated_data["y"] not in range(FIELD_HEIGHT):
             raise serializers.ValidationError("Coordinates are incorrect")
         hit = field[validated_data["y"], validated_data["x"]]
         new_shot, _ = Shot.objects.get_or_create(
@@ -143,9 +143,9 @@ class GameSerializer(serializers.ModelSerializer):
         # TODO: exclude used points from points list
         start_y, start_x, offset, length = self.get_offsets(orient, start_point, length)
         for i in range(offset):
-            if orient == "v" and 10 > start_x + i > -1:
+            if orient == "v" and FIELD_WIDTH > start_x + i > -1:
                 field[start_y : start_y + length, start_x + i] = 1
-            elif orient == "h" and 10 > start_y + i > -1:
+            elif orient == "h" and FIELD_HEIGHT > start_y + i > -1:
                 field[start_y + i, start_x : start_x + length] = 1
 
     def choose_start_point(self, field, points_list, orient, ship_size):
