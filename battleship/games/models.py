@@ -13,9 +13,13 @@ class Ship(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE)
     x = models.PositiveIntegerField()
     y = models.PositiveIntegerField()
-    length = models.PositiveIntegerField()
-    orient = models.CharField(max_length=1, null=True)
+
+
+class ShipDeck(models.Model):
+    x = models.PositiveIntegerField()
+    y = models.PositiveIntegerField()
     killed = models.BooleanField(default=False)
+    ship = models.ForeignKey(Ship, on_delete=models.CASCADE, related_name="decks")
 
 
 class Shot(models.Model):

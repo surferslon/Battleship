@@ -3,7 +3,7 @@ import random
 import numpy as np
 from django.core.exceptions import ObjectDoesNotExist
 from games.constants import FIELD_HEIGHT, FIELD_WIDTH
-from games.models import Game, Ship, Shot
+from games.models import Game, Ship, ShipDeck, Shot
 from rest_framework import serializers
 
 SHIP_SIZES = {
@@ -23,33 +23,18 @@ class ShotSerializer(serializers.ModelSerializer):
 
     def build_map(self, game, user):
         field = np.full((FIELD_HEIGHT, FIELD_WIDTH), 0)
-        for ship in Ship.objects.filter(game=game).exclude(user=user):
-            if ship.orient == "v":
-                field[ship.y : ship.y + ship.length, ship.x] = ship.id
-            elif ship.orient == "h":
-                field[ship.y, ship.x : ship.x + ship.length] = ship.id
+        for deck in ShipDeck.objects.filter(ship__game=game).exclude(ship__user=user):
+            field[deck.y, deck.x] = deck.id
         return field
 
-    def ship_is_killed(self, ship, game, user):
-        ship_coords = (
-            [(ship.x, ship.y + i) for i in range(ship.length)]
-            if ship.orient == "v"
-            else [(ship.x + i, ship.y) for i in range(ship.length)]
-        )
-        for coord in ship_coords:
-            try:
-                Shot.objects.get(x=coord[0], y=coord[1], game=game, user=user)
-            except ObjectDoesNotExist:
-                return False
-        return True
-
     def count_damage(self, hit, game, user):
-        ship = Ship.objects.get(id=hit)
-        if self.ship_is_killed(ship, game, user):
-            Ship.objects.filter(id=hit).update(killed=True)
-        if (
-            Ship.objects.filter(game=game, user=ship.user).count()
-            == Ship.objects.filter(game=game, user=ship.user, killed=True).count()
+        ShipDeck.objects.filter(id=hit).update(killed=True)
+        if not (
+            ShipDeck.objects.filter(
+                ship__game=game,
+                ship__user=ShipDeck.objects.get(id=hit).ship.user,
+                killed=False,
+            ).count()
         ):
             game.winner = user
             game.save()
@@ -57,14 +42,14 @@ class ShotSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context["request"].user
         game = validated_data["game"]
-        field = self.build_map(game, user)
         if validated_data["x"] not in range(FIELD_WIDTH) or validated_data["y"] not in range(FIELD_HEIGHT):
             raise serializers.ValidationError("Coordinates are incorrect")
+        field = self.build_map(game, user)
         hit = field[validated_data["y"], validated_data["x"]]
         new_shot, _ = Shot.objects.get_or_create(
             x=validated_data["x"],
             y=validated_data["y"],
-            game=validated_data["game"],
+            game=game,
             user=user,
             hit=bool(hit),
         )
@@ -74,10 +59,10 @@ class ShotSerializer(serializers.ModelSerializer):
         return new_shot
 
 
-class ShipSerializer(serializers.ModelSerializer):
+class ShipDeckSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Ship
-        fields = ["x", "y", "length", "orient"]
+        model = ShipDeck
+        fields = ["x", "y"]
 
 
 class GameListSerializer(serializers.ModelSerializer):
@@ -111,8 +96,11 @@ class GameSerializer(serializers.ModelSerializer):
         return enemy.username if enemy else None
 
     def get_ships(self, *args, **kwargs):
-        ships_queryset = Ship.objects.filter(game=self.instance, user=self.context["request"].user)
-        serializer = ShipSerializer(instance=ships_queryset, many=True, context=self.context)
+        serializer = ShipDeckSerializer(
+            instance=ShipDeck.objects.filter(ship__game=self.instance, ship__user=self.context["request"].user),
+            many=True,
+            context=self.context,
+        )
         return serializer.data
 
     def get_shots(self, *args, **kwargs):
@@ -161,6 +149,14 @@ class GameSerializer(serializers.ModelSerializer):
             coord = random.choice(points_list)
         return coord[0], coord[1]
 
+    def create_ship_decks(self, ship, start_point, ship_size, orient):
+        decks_coords = (
+            [(start_point[1], start_point[0] + i) for i in range(ship_size)]
+            if orient == "v"
+            else [(start_point[1] + i, start_point[0]) for i in range(ship_size)]
+        )
+        ShipDeck.objects.bulk_create([ShipDeck(x=deck[1], y=deck[0], ship=ship) for deck in decks_coords])
+
     def create_ships(self, current_user, game):
         for user in (current_user, None):
             field = np.full((FIELD_HEIGHT, FIELD_WIDTH), 0)
@@ -169,9 +165,8 @@ class GameSerializer(serializers.ModelSerializer):
                 orient = random.choice(("v", "h"))
                 start_point = self.choose_start_point(field, points_list, orient, ship_size)
                 self.fill_ship_space(field, orient, start_point, ship_size)
-                Ship.objects.create(
-                    y=start_point[0], x=start_point[1], length=ship_size, orient=orient, user=user, game=game
-                )
+                new_ship = Ship.objects.create(y=start_point[0], x=start_point[1], user=user, game=game)
+                self.create_ship_decks(new_ship, start_point, ship_size, orient)
 
     def create(self, validated_data):
         game = Game()

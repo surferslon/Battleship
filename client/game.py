@@ -59,10 +59,7 @@ class Game:
 
     def _fill_maps(self, enemy_field, player_field):
         for ship in self.ships:
-            if ship["orient"] == "v":
-                player_field[ship["y"] : ship["y"] + ship["length"], ship["x"]] = "#"
-            if ship["orient"] == "h":
-                player_field[ship["y"], ship["x"] : ship["x"] + ship["length"]] = "#"
+            player_field[ship["y"], ship["x"]] = "#"
         for shot in self.shots["player"]:
             enemy_field[shot["y"], shot["x"]] = "X" if shot["hit"] else "*"
         for shot in self.shots["enemy"]:
