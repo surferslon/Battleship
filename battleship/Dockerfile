@@ -8,7 +8,7 @@ ENV DEBUG=1
 
 RUN python -m pip install django django-rest-framework numpy
 
-ADD battleship /usr/app
+ADD . /usr/app
 
 WORKDIR /usr/app/
 

@@ -1,4 +1,4 @@
-API_URL = "http://localhost:8000/api"
+API_URL = "http://127.0.0.1:8000/api"
 URL_SIGNUP = "users/signup"
 URL_LOGIN = "users/login"
 URL_GAMES_LIST = "games/list"
